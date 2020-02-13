@@ -1,3 +1,5 @@
+package com.mycompany.messageboard;
+
 import com.sun.net.httpserver.*;
 import java.net.URI;
 import java.io.InputStream;
@@ -68,8 +70,11 @@ public class RequestHandler implements HttpHandler
   {
     URI uri = exchange.getRequestURI();
     String path = uri.getPath().substring(messagePath.length() + 1);
+    String jsonOutput = null;
 
     System.out.println("Got request to: " + path);
+
+    Gson gson = new Gson();
 
     if (path.contains("/"))
     {
@@ -80,13 +85,21 @@ public class RequestHandler implements HttpHandler
     if (path.length() == 0)
     {
       System.out.println("Path is 0");
+      MessageList messageList = messageCollection.getMessageIds();
+
+      try
+      {
+        jsonOutput = gson.toJson(messageList);
+      }
+      catch (Exception e)
+      {
+        System.out.println(e);
+      }
     }
     else
     {
       Integer messageIndex = Integer.parseInt(path);
       Message message = messageCollection.getMessage(messageIndex);
-      Gson gson = new Gson();
-      String jsonOutput;
 
       if (message == null)
       {
@@ -96,27 +109,27 @@ public class RequestHandler implements HttpHandler
 
       jsonOutput = gson.toJson(message);
 
-      OutputStreamWriter writer;
-      try
-      {
-        exchange.sendResponseHeaders(200, jsonOutput.length());
-      }
-      catch (Exception ignore)
-      {
-
-      }
-
-      writer = new OutputStreamWriter(exchange.getResponseBody());
-      try{
-        writer.write(gson.toJson(message));
-        writer.close();
-      }
-      catch (Exception ignore)
-      {
-
-      }
     }
 
+    OutputStreamWriter writer;
+    try
+    {
+      exchange.sendResponseHeaders(200, jsonOutput.length());
+    }
+    catch (Exception ignore)
+    {
+
+    }
+
+    writer = new OutputStreamWriter(exchange.getResponseBody());
+    try{
+      writer.write(jsonOutput);
+      writer.close();
+    }
+    catch (Exception ignore)
+    {
+
+    }
 
     exchange.close();
   }

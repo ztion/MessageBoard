@@ -1,3 +1,5 @@
+package com.mycompany.messageboard;
+
 import java.util.HashMap;
 
 public class MessageCollection
@@ -21,5 +23,21 @@ public class MessageCollection
   public Message getMessage(int index)
   {
     return messageMap.get(index);
+  }
+
+  public MessageList getMessageIds()
+  {
+    MessageList idList = null;
+    try
+    {
+      idList = new MessageList(messageMap.keySet().toArray(new Integer[0]));
+    }
+    catch (Exception e)
+    {
+      System.out.println(e);
+      return null;
+    }
+
+    return idList;
   }
 }

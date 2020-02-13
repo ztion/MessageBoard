@@ -1,3 +1,5 @@
+package com.mycompany.messageboard;
+
 public class Message
 {
   private String subject;
