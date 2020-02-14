@@ -15,6 +15,7 @@ public class MessageCollection
   public int storeMessage(Message newMessage)
   {
     System.out.println("got: " + newMessage.getSubject() + " " + newMessage.getBody());
+    newMessage.set_id(messageIndex);
     messageMap.put(messageIndex, newMessage);
 
     return messageIndex++;

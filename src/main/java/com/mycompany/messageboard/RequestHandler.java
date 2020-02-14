@@ -39,12 +39,6 @@ public class RequestHandler implements HttpHandler
     returnStatusCode(exchange, 404);
   }
 
-  private void returnOK(HttpExchange exchange)
-  {
-    returnStatusCode(exchange, 200);
-    exchange.close();
-  }
-
   private String readRequestBody(InputStream body)
   {
     char[] readBuffer = new char[64];
@@ -66,23 +60,72 @@ public class RequestHandler implements HttpHandler
     return returnString.toString();
   }
 
+  private boolean sendResponse(HttpExchange exchange, String response, int code)
+  {
+    
+    OutputStreamWriter writer;
+    try
+    {
+      exchange.sendResponseHeaders(code, response.length());
+    }
+    catch (Exception ignore)
+    {
+
+    }
+
+    writer = new OutputStreamWriter(exchange.getResponseBody());
+    try
+    {
+      writer.write(response);
+      writer.close();
+    }
+    catch (Exception ignore)
+    {
+
+    }
+
+    return true;
+  }
+
+  private String parseIdentifier(String path)
+  {
+    String identifier;
+    
+    try
+    {
+      identifier = path.substring(messagePath.length() + 1);
+    }
+    catch (Exception e)
+    {
+      return "";
+    }
+
+    /* Only allow integers as identifiers */
+    if (identifier.contains("/"))
+    {
+      return null;
+    }
+
+    return identifier;
+  }
+
   private void handleGET(HttpExchange exchange)
   {
     URI uri = exchange.getRequestURI();
-    String path = uri.getPath().substring(messagePath.length() + 1);
+    String identifier = parseIdentifier(uri.getPath());
     String jsonOutput = null;
 
-    System.out.println("Got request to: " + path);
+    System.out.println("Got request to: " + uri.getPath());
 
     Gson gson = new Gson();
 
-    if (path.contains("/"))
+    if (identifier == null)
     {
       returnInvalid(exchange);
       return;
     }
 
-    if (path.length() == 0)
+    if (identifier.length() == 0)
     {
       System.out.println("Path is 0");
       MessageList messageList = messageCollection.getMessageIds();
@@ -98,7 +141,7 @@ public class RequestHandler implements HttpHandler
     }
     else
     {
-      Integer messageIndex = Integer.parseInt(path);
+      Integer messageIndex = Integer.parseInt(identifier);
       Message message = messageCollection.getMessage(messageIndex);
 
       if (message == null)
@@ -111,25 +154,7 @@ public class RequestHandler implements HttpHandler
 
     }
 
-    OutputStreamWriter writer;
-    try
-    {
-      exchange.sendResponseHeaders(200, jsonOutput.length());
-    }
-    catch (Exception ignore)
-    {
-
-    }
-
-    writer = new OutputStreamWriter(exchange.getResponseBody());
-    try{
-      writer.write(jsonOutput);
-      writer.close();
-    }
-    catch (Exception ignore)
-    {
-
-    }
+    sendResponse(exchange, jsonOutput, 200);
 
     exchange.close();
   }
@@ -166,7 +191,9 @@ public class RequestHandler implements HttpHandler
 
     messageCollection.storeMessage(newMessage);
 
-    returnOK(exchange);
+    String jsonResponse = gson.toJson(newMessage);
+
+    sendResponse(exchange, jsonResponse, 200);
 
     System.out.println("Got request to: " + path);
   }

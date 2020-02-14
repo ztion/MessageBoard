@@ -4,12 +4,7 @@ public class Message
 {
   private String subject;
   private String body;
-
-  /*public Message(String newSubject, String newBody)
-  {
-    subject = newSubject;
-    body = newBody;
-  }*/
+  private int id = 0;
 
   public String getSubject()
   {
@@ -19,5 +14,10 @@ public class Message
   public String getBody()
   {
     return body;
+  }
+
+  public void set_id(int newId)
+  {
+    id = newId;
   }
 }
