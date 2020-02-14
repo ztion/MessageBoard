@@ -39,6 +39,11 @@ public class RequestHandler implements HttpHandler
     returnStatusCode(exchange, 404);
   }
 
+  private void returnOK(HttpExchange exchange)
+  {
+    returnStatusCode(exchange, 200);
+  }
+
   private String readRequestBody(InputStream body)
   {
     char[] readBuffer = new char[64];
@@ -198,6 +203,31 @@ public class RequestHandler implements HttpHandler
     System.out.println("Got request to: " + path);
   }
 
+  private void handleDELETE(HttpExchange exchange)
+  {
+    URI uri = exchange.getRequestURI();
+    String identifier = parseIdentifier(uri.getPath());
+
+    System.out.println("Got request to: " + uri.getPath());
+
+    if (identifier == null || identifier.length() == 0)
+    {
+      returnInvalid(exchange);
+      return;
+    }
+
+    Integer messageIndex = Integer.parseInt(identifier);
+
+    if (!messageCollection.deleteMessage(messageIndex))
+    {
+      returnNotFound(exchange);
+      exchange.close();
+    }
+
+    returnOK(exchange);
+    exchange.close();
+  }
+
   public void handle(HttpExchange exchange)
   {
     String method = exchange.getRequestMethod().toUpperCase();
@@ -209,6 +239,10 @@ public class RequestHandler implements HttpHandler
         break;
       case "POST":
         handlePOST(exchange);
+        break;
+      case "DELETE":
+        handleDELETE(exchange);
+        break;
       default:
         exchange.close();
         break;

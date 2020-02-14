@@ -26,6 +26,16 @@ public class MessageCollection
     return messageMap.get(index);
   }
 
+  public boolean deleteMessage(int index)
+  {
+    if (messageMap.remove(index) == null)
+    {
+      return false;
+    }
+
+    return true;
+  }
+
   public MessageList getMessageIds()
   {
     MessageList idList = null;
