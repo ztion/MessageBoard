@@ -31,7 +31,6 @@ public class RequestHandler implements HttpHandler
   private void returnInvalid(HttpExchange exchange)
   {
     returnStatusCode(exchange, 500);
-    exchange.close();
   }
 
   private void returnNotFound(HttpExchange exchange)
@@ -63,6 +62,34 @@ public class RequestHandler implements HttpHandler
     }
 
     return returnString.toString();
+  }
+
+  private Message parseSentMessage(HttpExchange exchange)
+  {
+    String readBody;
+    InputStream body;
+    Message newMessage = null;
+    Gson gson = new Gson();
+
+    body = exchange.getRequestBody();
+    readBody = readRequestBody(body);
+
+    readBody = readBody.trim();
+    try {
+      newMessage = gson.fromJson(readBody, Message.class);
+    }
+    catch (Exception e)
+    {
+      System.out.println("Got error" + e);
+      return null;
+    }
+
+    if (!newMessage.verify())
+    {
+      return null;
+    }
+
+    return newMessage;
   }
 
   private boolean sendResponse(HttpExchange exchange, String response, int code)
@@ -160,17 +187,13 @@ public class RequestHandler implements HttpHandler
     }
 
     sendResponse(exchange, jsonOutput, 200);
-
-    exchange.close();
   }
 
   private void handlePOST(HttpExchange exchange)
   {
     URI uri = exchange.getRequestURI();
     String path = uri.getPath();
-    String readBody;
     Message newMessage = null;
-    InputStream body;
     Gson gson = new Gson();
 
 
@@ -180,16 +203,9 @@ public class RequestHandler implements HttpHandler
       return;
     }
 
-    body = exchange.getRequestBody();
-    readBody = readRequestBody(body);
-
-    readBody = readBody.trim();
-    try {
-      newMessage = gson.fromJson(readBody, Message.class);
-    }
-    catch (Exception e)
+    newMessage = parseSentMessage(exchange);
+    if (newMessage == null)
     {
-      System.out.println("Got error" + e);
       returnInvalid(exchange);
       return;
     }
@@ -221,11 +237,46 @@ public class RequestHandler implements HttpHandler
     if (!messageCollection.deleteMessage(messageIndex))
     {
       returnNotFound(exchange);
-      exchange.close();
+      return;
     }
 
     returnOK(exchange);
-    exchange.close();
+  }
+
+  private void handlePUT(HttpExchange exchange)
+  {
+    URI uri = exchange.getRequestURI();
+    String identifier = parseIdentifier(uri.getPath());
+    Message oldMessage;
+    Message newMessage;
+
+    System.out.println("Got request to: " + uri.getPath());
+
+    if (identifier == null || identifier.length() == 0)
+    {
+      returnInvalid(exchange);
+      return;
+    }
+
+    Integer messageIndex = Integer.parseInt(identifier);
+    
+    oldMessage = messageCollection.getMessage(messageIndex);
+    if (oldMessage == null)
+    {
+      returnNotFound(exchange);
+      return;
+    }
+
+    newMessage = parseSentMessage(exchange);
+    if (newMessage == null)
+    {
+      returnInvalid(exchange);
+      return;
+    }
+
+    oldMessage.updateMessage(newMessage);
+
+    returnOK(exchange);
   }
 
   public void handle(HttpExchange exchange)
@@ -243,9 +294,13 @@ public class RequestHandler implements HttpHandler
       case "DELETE":
         handleDELETE(exchange);
         break;
+      case "PUT":
+        handlePUT(exchange);
+        break;
       default:
-        exchange.close();
         break;
     }
+
+    exchange.close();
   }
 }
