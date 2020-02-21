@@ -101,12 +101,12 @@ public class RequestHandler implements HttpHandler
       return null;
     }
 
-    if (!newMessage.verify())
-    {
-      return null;
-    }
-
     return newMessage;
+  }
+
+  private boolean verifyMessage(Message message)
+  {
+    return message.verify();
   }
 
   private boolean sendResponse(HttpExchange exchange, String response, int code)
@@ -136,9 +136,10 @@ public class RequestHandler implements HttpHandler
     return true;
   }
 
-  private String parseIdentifier(String path)
+  private Integer parseIdentifier(String path)
   {
     String identifier;
+    Integer index = null;
     
     try
     {
@@ -146,7 +147,7 @@ public class RequestHandler implements HttpHandler
     }
     catch (Exception e)
     {
-      return "";
+      return null;
     }
 
     /* Only allow integers as identifiers */
@@ -155,26 +156,29 @@ public class RequestHandler implements HttpHandler
       return null;
     }
 
-    return identifier;
+    try
+    {
+      index = Integer.parseInt(identifier);
+    }
+    catch (Exception e)
+    {
+      return null;
+    }
+
+    return index;
   }
 
   private void handleGET(HttpExchange exchange)
   {
     URI uri = exchange.getRequestURI();
-    String identifier = parseIdentifier(uri.getPath());
+    String path = uri.getPath();
     String jsonOutput = null;
 
     System.out.println("Got request to: " + uri.getPath());
 
     Gson gson = new Gson();
 
-    if (identifier == null)
-    {
-      returnInvalid(exchange);
-      return;
-    }
-
-    if (identifier.length() == 0)
+    if (path.length() == messagePath.length())
     {
       System.out.println("Path is 0");
       MessageList messageList = messageCollection.getMessageIds();
@@ -190,7 +194,14 @@ public class RequestHandler implements HttpHandler
     }
     else
     {
-      Integer messageIndex = Integer.parseInt(identifier);
+      Integer messageIndex = parseIdentifier(path);
+
+      if (messageIndex == null)
+      {
+        returnInvalid(exchange);
+        return;
+      }
+
       Message message = messageCollection.getMessage(messageIndex);
 
       if (message == null)
@@ -221,7 +232,7 @@ public class RequestHandler implements HttpHandler
     }
 
     newMessage = parseSentMessage(exchange);
-    if (newMessage == null)
+    if (newMessage == null || !verifyMessage(newMessage))
     {
       returnInvalid(exchange);
       return;
@@ -239,17 +250,15 @@ public class RequestHandler implements HttpHandler
   private void handleDELETE(HttpExchange exchange)
   {
     URI uri = exchange.getRequestURI();
-    String identifier = parseIdentifier(uri.getPath());
+    Integer messageIndex = parseIdentifier(uri.getPath());
 
     System.out.println("Got request to: " + uri.getPath());
 
-    if (identifier == null || identifier.length() == 0)
+    if (messageIndex == null)
     {
       returnInvalid(exchange);
       return;
     }
-
-    Integer messageIndex = Integer.parseInt(identifier);
 
     if (!messageCollection.deleteMessage(messageIndex))
     {
@@ -263,20 +272,52 @@ public class RequestHandler implements HttpHandler
   private void handlePUT(HttpExchange exchange)
   {
     URI uri = exchange.getRequestURI();
-    String identifier = parseIdentifier(uri.getPath());
+    Integer messageIndex = parseIdentifier(uri.getPath());
     Message oldMessage;
     Message newMessage;
 
     System.out.println("Got request to: " + uri.getPath());
 
-    if (identifier == null || identifier.length() == 0)
+    if (messageIndex == null)
     {
       returnInvalid(exchange);
       return;
     }
 
-    Integer messageIndex = Integer.parseInt(identifier);
-    
+    oldMessage = messageCollection.getMessage(messageIndex);
+    if (oldMessage == null)
+    {
+      returnNotFound(exchange);
+      return;
+    }
+
+    newMessage = parseSentMessage(exchange);
+    if (newMessage == null || !verifyMessage(newMessage))
+    {
+      returnInvalid(exchange);
+      return;
+    }
+
+    oldMessage.updateMessage(newMessage);
+
+    returnOK(exchange);
+  }
+
+  private void handlePATCH(HttpExchange exchange)
+  {
+    URI uri = exchange.getRequestURI();
+    Integer messageIndex = parseIdentifier(uri.getPath());
+    Message oldMessage;
+    Message newMessage;
+
+    System.out.println("Got request to: " + uri.getPath());
+
+    if (messageIndex == null)
+    {
+      returnInvalid(exchange);
+      return;
+    }
+
     oldMessage = messageCollection.getMessage(messageIndex);
     if (oldMessage == null)
     {
@@ -313,6 +354,9 @@ public class RequestHandler implements HttpHandler
         break;
       case "PUT":
         handlePUT(exchange);
+        break;
+      case "PATCH":
+        handlePATCH(exchange);
         break;
       default:
         break;
